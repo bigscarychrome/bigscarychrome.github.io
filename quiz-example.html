@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Quiz example — Plain HTML</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;margin:20px;}
+    .quiz{max-width:720px;margin:0 auto}
+    fieldset{border:1px solid #ddd;padding:1rem;margin:1rem 0}
+    legend{font-weight:700}
+    .choices{display:flex;flex-direction:column;gap:.5rem;margin-top:.5rem}
+    button{padding:.5rem 1rem;border-radius:6px;border:1px solid #888;background:#0078d4;color:#fff}
+    .results{margin-top:1rem;padding:1rem;border-radius:6px;background:#f6f9ff;border:1px solid #cfe0ff}
+    .correct{color:green}
+    .wrong{color:#b22222}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+  </style>
+</head>
+<body>
+  <main class="quiz" id="main">
+    <h1>Short Quiz: Web Basics</h1>
+    <p>Example of a plain HTML quiz with accessible markup, keyboard support, instant feedback, and scoring — no frameworks required.</p>
+
+    <form id="quizForm" aria-describedby="quiz-instructions">
+      <p id="quiz-instructions">Select an answer for each question and press <strong>Submit</strong>. Use <kbd>Tab</kbd> and <kbd>Space</kbd>/<kbd>Enter</kbd> to interact.</p>
+
+      <fieldset data-question-id="q1">
+        <legend>1. What does HTML stand for?</legend>
+        <div class="choices" role="radiogroup" aria-labelledby>
+          <label><input type="radio" name="q1" value="a"> Hyper Text Markup Language</label>
+          <label><input type="radio" name="q1" value="b"> Home Tool Markup Language</label>
+          <label><input type="radio" name="q1" value="c"> Hyperlinks and Text Markup</label>
+        </div>
+        <p class="feedback sr-only" aria-live="polite"></p>
+      </fieldset>
+
+      <fieldset data-question-id="q2">
+        <legend>2. Which tag is used for a paragraph?</legend>
+        <div class="choices">
+          <label><input type="radio" name="q2" value="a"> &lt;para&gt;</label>
+          <label><input type="radio" name="q2" value="b"> &lt;p&gt;</label>
+          <label><input type="radio" name="q2" value="c"> &lt;paragraph&gt;</label>
+        </div>
+        <p class="feedback sr-only" aria-live="polite"></p>
+      </fieldset>
+
+      <fieldset data-question-id="q3">
+        <legend>3. Which of these is a CSS property for color?</legend>
+        <div class="choices">
+          <label><input type="radio" name="q3" value="a"> font-size</label>
+          <label><input type="radio" name="q3" value="b"> background-image</label>
+          <label><input type="radio" name="q3" value="c"> color</label>
+        </div>
+        <p class="feedback sr-only" aria-live="polite"></p>
+      </fieldset>
+
+      <div style="display:flex;gap:.5rem;align-items:center;margin-top:1rem;">
+        <button type="button" id="submitBtn">Submit</button>
+        <button type="button" id="resetBtn">Reset</button>
+        <div id="score" aria-live="polite"></div>
+      </div>
+    </form>
+
+    <section id="details" class="results" hidden>
+      <h2>Feedback</h2>
+      <ol id="feedbackList"></ol>
+    </section>
+  </main>
+
+  <script>
+    // Simple quiz logic
+    (function(){
+      const answers = { q1: 'a', q2: 'b', q3: 'c' };
+      const form = document.getElementById('quizForm');
+      const submitBtn = document.getElementById('submitBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const scoreEl = document.getElementById('score');
+      const details = document.getElementById('details');
+      const feedbackList = document.getElementById('feedbackList');
+
+      function getSelectedValue(name){
+        const el = form.querySelector(`input[name="${name}"]:checked`);
+        return el ? el.value : null;
+      }
+
+      function grade(){
+        let total = 0, correct = 0;
+        feedbackList.innerHTML = '';
+        details.hidden = true;
+
+        Object.keys(answers).forEach(q => {
+          total++;
+          const sel = getSelectedValue(q);
+          const field = form.querySelector(`fieldset[data-question-id="${q}"]`);
+          const fb = field.querySelector('.feedback');
+
+          // clear previous
+          field.classList.remove('answered-correct','answered-wrong');
+          fb.classList.add('sr-only');
+          fb.textContent = '';
+
+          if(!sel){
+            // unanswered
+            fb.classList.remove('sr-only');
+            fb.textContent = 'No answer selected.';
+            field.classList.add('answered-wrong');
+            addFeedback(q, false, 'No answer selected.');
+            return;
+          }
+
+          if(sel === answers[q]){
+            correct++;
+            field.classList.add('answered-correct');
+            fb.classList.remove('sr-only');
+            fb.textContent = 'Correct.';
+            addFeedback(q, true, 'Correct.');
+          } else {
+            field.classList.add('answered-wrong');
+            fb.classList.remove('sr-only');
+            fb.textContent = 'Incorrect.';
+            addFeedback(q, false, 'Incorrect.');
+          }
+        });
+
+        const pct = Math.round((correct/total)*100);
+        scoreEl.textContent = `Score: ${correct}/${total} (${pct}%)`;
+        details.hidden = false;
+      }
+
+      function addFeedback(q, ok, text){
+        const li = document.createElement('li');
+        li.textContent = `Question ${q.slice(1)}: ${text}`;
+        li.className = ok ? 'correct' : 'wrong';
+        feedbackList.appendChild(li);
+      }
+
+      submitBtn.addEventListener('click', grade);
+
+      resetBtn.addEventListener('click', ()=>{
+        form.reset();
+        scoreEl.textContent = '';
+        feedbackList.innerHTML = '';
+        details.hidden = true;
+        form.querySelectorAll('fieldset').forEach(f=>{
+          f.classList.remove('answered-correct','answered-wrong');
+          const fb = f.querySelector('.feedback');
+          fb.classList.add('sr-only'); fb.textContent='';
+        });
+      });
+
+      // keyboard-accessible radio selection improvements
+      form.addEventListener('keydown', (e)=>{
+        const rad = e.target;
+        if(rad && rad.type === 'radio'){
+          if(e.key === ' ' || e.key === 'Spacebar'){
+            e.preventDefault();
+            rad.checked = true;
+            // Move focus to next element to mimic native behaviour in some browsers
+            const all = Array.from(form.querySelectorAll('input'));
+            const idx = all.indexOf(rad);
+            if(idx >= 0 && idx < all.length-1) all[idx+1].focus();
+          }
+        }
+      });
+
+      // expose a small API if someone wants to reuse
+      window.simpleQuiz = {
+        grade, reset: ()=>resetBtn.click(), answers
+      };
+    })();
+  </script>
+</body>
+</html>
